@@ -1352,7 +1352,6 @@ class Trainer:
                 xm.rendezvous("load_best_model_at_end")
             elif args.local_rank != -1:
                 dist.barrier()
-
             logger.info(
                 f"Loading best model from {self.state.best_model_checkpoint} (score: {self.state.best_metric})."
             )
@@ -1519,7 +1518,7 @@ class Trainer:
             metric_value = metrics[metric_to_check]
 
             operator = np.greater if self.args.greater_is_better else np.less
-            if (
+            if self.state.epoch >= self.args.best_model_after_epoch and (
                 self.state.best_metric is None
                 or self.state.best_model_checkpoint is None
                 or operator(metric_value, self.state.best_metric)
