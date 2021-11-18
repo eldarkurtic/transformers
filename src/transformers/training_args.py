@@ -238,6 +238,9 @@ class TrainingArguments:
 
             If you set this value, :obj:`greater_is_better` will default to :obj:`True`. Don't forget to set it to
             :obj:`False` if your metric is better when lower.
+        best_model_after_epoch (:obj:`int`, `optional`, defaults to 0):
+            Use in conjunction with :obj:`load_best_model_at_end` to specify the epoch after which best model will be
+            saved.
         greater_is_better (:obj:`bool`, `optional`):
             Use in conjunction with :obj:`load_best_model_at_end` and :obj:`metric_for_best_model` to specify if better
             models should have a greater metric or not. Will default to:
@@ -498,6 +501,13 @@ class TrainingArguments:
     )
     metric_for_best_model: Optional[str] = field(
         default=None, metadata={"help": "The metric to use to compare two different models."}
+    )
+    best_model_after_epoch: int = field(
+        default=0,
+        metadata={
+            "help": "If `load_best_model_at_end` is set, the best model will be consider starting from the epoch "
+            "defined by this argument."
+        },
     )
     greater_is_better: Optional[bool] = field(
         default=None, metadata={"help": "Whether the `metric_for_best_model` should be maximized or not."}
