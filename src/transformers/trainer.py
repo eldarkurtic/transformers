@@ -1513,12 +1513,13 @@ class Trainer:
         # Determine the new best metric / best model checkpoint
         if metrics is not None and self.args.metric_for_best_model is not None:
             metric_to_check = self.args.metric_for_best_model
-            if not metric_to_check.startswith("eval_"):
+
+            if metric_to_check not in metrics and not metric_to_check.startswith("eval_"):
                 metric_to_check = f"eval_{metric_to_check}"
             metric_value = metrics[metric_to_check]
 
             operator = np.greater if self.args.greater_is_better else np.less
-            if self.state.epoch >= self.args.best_model_after_epoch and (
+            if self.state.epoch > self.args.best_model_after_epoch and (
                 self.state.best_metric is None
                 or self.state.best_model_checkpoint is None
                 or operator(metric_value, self.state.best_metric)
