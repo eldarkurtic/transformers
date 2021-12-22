@@ -15,17 +15,23 @@
 # limitations under the License.
 """PyTorch BERT model. """
 
-
 import math
 import os
 import warnings
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
+MY_QAT_FIX = 0
+
 import torch
 import torch.utils.checkpoint
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+
+try:
+    from torch.nn.quantized import FloatFunctional
+except Exception:
+    FloatFunctional = None
 
 from ...activations import ACT2FN
 from ...file_utils import (
@@ -54,7 +60,6 @@ from ...modeling_utils import (
 )
 from ...utils import logging
 from .configuration_bert import BertConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -362,11 +367,18 @@ class BertSelfOutput(nn.Module):
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.f_add = FloatFunctional() if FloatFunctional is not None else None
 
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states + input_tensor)
+
+        # Tuan: Residual
+        if MY_QAT_FIX:
+            res_add = self.f_add.add(hidden_states, input_tensor) if self.f_add is not None else hidden_states + input_tensor
+        else:
+            res_add = hidden_states + input_tensor
+        hidden_states = self.LayerNorm(res_add)
         return hidden_states
 
 
@@ -440,11 +452,18 @@ class BertOutput(nn.Module):
         self.dense = nn.Linear(config.intermediate_size, config.hidden_size)
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.f_add = FloatFunctional() if FloatFunctional is not None else None
 
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states + input_tensor)
+
+        # Tuan: Residual
+        if MY_QAT_FIX:
+            res_add = self.f_add.add(hidden_states, input_tensor) if self.f_add is not None else hidden_states + input_tensor
+        else:
+            res_add = hidden_states + input_tensor
+        hidden_states = self.LayerNorm(res_add)
         return hidden_states
 
 
