@@ -16,6 +16,8 @@ from sparseml.pytorch.utils import logger
 from transformers import Trainer
 from transformers.file_utils import RECIPE_NAME, WEIGHTS_NAME
 
+from .trainer_utils import ShardedDDPOption
+
 
 class SparseMLTrainer(Trainer):
     """
@@ -162,6 +164,17 @@ class SparseMLTrainer(Trainer):
         super().save_model(output_dir=output_dir)
         if self.manager is not None:
             self._save_arch_modifiers(output_dir=output_dir)
+
+    def save_optimizer(self, output_dir: Optional[str] = None):
+        if output_dir is None:
+            output_dir = self.args.output_dir
+
+        # Following logics in _save_checkpoint
+        if self.sharded_ddp == ShardedDDPOption.SIMPLE:
+            self.optimizer.consolidate_state_dict()
+
+        if self.is_world_process_zero():
+            torch.save(self.optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
 
     def _save_arch_modifiers(self, output_dir: Optional[str] = None):
         """

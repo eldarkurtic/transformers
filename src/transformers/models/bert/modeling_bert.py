@@ -21,7 +21,7 @@ import warnings
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
-MY_QAT_FIX = 0
+MY_QAT_FIX = 1
 
 import torch
 import torch.utils.checkpoint

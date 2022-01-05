@@ -537,6 +537,9 @@ def main():
         trainer.save_metrics("train", metrics)
         trainer.save_state()
 
+        # Also save the optimizer to support QAT from the pruned model
+        trainer.save_optimizer()
+
     # Evaluation
     if training_args.do_eval:
         logger.info("*** Evaluate ***")
