@@ -21,8 +21,6 @@ import warnings
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
-MY_QAT_FIX = 1
-
 import torch
 import torch.utils.checkpoint
 from torch import nn
@@ -374,10 +372,7 @@ class BertSelfOutput(nn.Module):
         hidden_states = self.dropout(hidden_states)
 
         # Tuan: Residual
-        if MY_QAT_FIX:
-            res_add = self.f_add.add(hidden_states, input_tensor) if self.f_add is not None else hidden_states + input_tensor
-        else:
-            res_add = hidden_states + input_tensor
+        res_add = self.f_add.add(hidden_states, input_tensor) if self.f_add is not None else hidden_states + input_tensor
         hidden_states = self.LayerNorm(res_add)
         return hidden_states
 
@@ -459,10 +454,7 @@ class BertOutput(nn.Module):
         hidden_states = self.dropout(hidden_states)
 
         # Tuan: Residual
-        if MY_QAT_FIX:
-            res_add = self.f_add.add(hidden_states, input_tensor) if self.f_add is not None else hidden_states + input_tensor
-        else:
-            res_add = hidden_states + input_tensor
+        res_add = self.f_add.add(hidden_states, input_tensor) if self.f_add is not None else hidden_states + input_tensor
         hidden_states = self.LayerNorm(res_add)
         return hidden_states
 
