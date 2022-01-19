@@ -3,6 +3,7 @@ import inspect
 import json
 import math
 import os
+import warnings
 from typing import Dict, Optional
 
 import numpy
@@ -17,6 +18,7 @@ from transformers import Trainer
 from transformers.file_utils import RECIPE_NAME, WEIGHTS_NAME
 
 from .trainer_utils import ShardedDDPOption
+from .trainer_pt_utils import reissue_pt_warnings
 
 
 class SparseMLTrainer(Trainer):
@@ -175,6 +177,11 @@ class SparseMLTrainer(Trainer):
 
         if self.is_world_process_zero():
             torch.save(self.optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
+            with warnings.catch_warnings(record=True) as caught_warnings:
+                torch.save(self.lr_scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
+            reissue_pt_warnings(caught_warnings)
+            if self.use_amp:
+                torch.save(self.scaler.state_dict(), os.path.join(output_dir, "scaler.pt"))
 
     def _save_arch_modifiers(self, output_dir: Optional[str] = None):
         """
@@ -194,7 +201,7 @@ class SparseMLTrainer(Trainer):
                     yaml_file.write(str(mod) + "\n\n")
 
 
-def export_model(exporter, dataloader, output_dir, num_exported_samples):
+def export_model(exporter, dataloader, output_dir, num_exported_samples, convert_qat: bool = True):
     """
     Export a trained model to ONNX
     :param exporter: a model exporter created from a trained model
@@ -219,7 +226,7 @@ def export_model(exporter, dataloader, output_dir, num_exported_samples):
             )
 
             try:
-                exporter.export_onnx(sample_batch=one_sample_input, convert_qat=True)
+                exporter.export_onnx(sample_batch=one_sample_input, convert_qat=convert_qat)
                 onnx_file = os.path.join(output_dir, "model.onnx")
             except Exception:
                 raise RuntimeError("Error exporting ONNX models and/or inputs/outputs")

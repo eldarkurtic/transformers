@@ -110,6 +110,9 @@ class DataTrainingArguments:
     onnx_export_path: Optional[str] = field(
         default=None, metadata={"help": "The filename and path which will be where onnx model is outputed"}
     )
+    onnx_convert_qat: bool = field(
+        default=True, metadata={"help": "Convert QAT during onnx export"}
+    )
     num_exported_samples: Optional[int] = field(
         default=20, metadata={"help": "Number of exported samples, default to 20"}
     )
@@ -629,6 +632,9 @@ def main():
         trainer.save_metrics("train", metrics)
         trainer.save_state()
 
+        # Also save the optimizer to support QAT from the pruned model
+        trainer.save_optimizer()
+
     # Evaluation
     if training_args.do_eval:
         logger.info("*** Evaluate ***")
@@ -670,7 +676,7 @@ def main():
         logger.info("*** Export to ONNX ***")
         eval_dataloader = trainer.get_eval_dataloader(eval_dataset)
         exporter = QuestionAnsweringModuleExporter(model, output_dir=data_args.onnx_export_path)
-        export_model(exporter, eval_dataloader, data_args.onnx_export_path, data_args.num_exported_samples)
+        export_model(exporter, eval_dataloader, data_args.onnx_export_path, data_args.num_exported_samples, convert_qat=data_args.onnx_convert_qat)
 
 
 def _mp_fn(index):
