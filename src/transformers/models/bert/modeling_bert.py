@@ -371,9 +371,7 @@ class BertSelfOutput(nn.Module):
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
 
-        # Tuan: Residual
-        res_add = self.f_add.add(hidden_states, input_tensor) if self.f_add is not None else hidden_states + input_tensor
-        hidden_states = self.LayerNorm(res_add)
+        hidden_states = self.LayerNorm(hidden_states + input_tensor)
         return hidden_states
 
 
@@ -453,9 +451,7 @@ class BertOutput(nn.Module):
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
 
-        # Tuan: Residual
-        res_add = self.f_add.add(hidden_states, input_tensor) if self.f_add is not None else hidden_states + input_tensor
-        hidden_states = self.LayerNorm(res_add)
+        hidden_states = self.LayerNorm(hidden_states + input_tensor)
         return hidden_states
 
 
