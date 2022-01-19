@@ -194,7 +194,7 @@ class SparseMLTrainer(Trainer):
                     yaml_file.write(str(mod) + "\n\n")
 
 
-def export_model(exporter, dataloader, output_dir, num_exported_samples):
+def export_model(exporter, dataloader, output_dir, num_exported_samples, convert_qat: bool = True):
     """
     Export a trained model to ONNX
     :param exporter: a model exporter created from a trained model
@@ -219,7 +219,7 @@ def export_model(exporter, dataloader, output_dir, num_exported_samples):
             )
 
             try:
-                exporter.export_onnx(sample_batch=one_sample_input, convert_qat=True)
+                exporter.export_onnx(sample_batch=one_sample_input, convert_qat=convert_qat)
                 onnx_file = os.path.join(output_dir, "model.onnx")
             except Exception:
                 raise RuntimeError("Error exporting ONNX models and/or inputs/outputs")
