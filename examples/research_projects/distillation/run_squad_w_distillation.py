@@ -115,9 +115,18 @@ def train(args, train_dataset, model, tokenizer, teacher=None):
         {"params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], "weight_decay": 0.0},
     ]
     optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+
+    # Tuan: begin
+    num_warmup_steps = int(t_total * args.warmup_ratio) if args.warmup_ratio > 0.0 else args.warmup_steps
+    
+    # scheduler = get_linear_schedule_with_warmup(
+    #     optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
+    # )
     scheduler = get_linear_schedule_with_warmup(
-        optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
+        optimizer, num_warmup_steps=num_warmup_steps, num_training_steps=t_total
     )
+
+    # Tuan: end
 
     # Check if saved optimizer or scheduler states exist
     if os.path.isfile(os.path.join(args.model_name_or_path, "optimizer.pt")) and os.path.isfile(
@@ -158,6 +167,10 @@ def train(args, train_dataset, model, tokenizer, teacher=None):
     )
     logger.info("  Gradient Accumulation steps = %d", args.gradient_accumulation_steps)
     logger.info("  Total optimization steps = %d", t_total)
+
+    # Tuan: begin
+    logger.info("  Total warmup steps = %d", num_warmup_steps)
+    # Tuan: end
 
     global_step = 1
     epochs_trained = 0
@@ -213,18 +226,23 @@ def train(args, train_dataset, model, tokenizer, teacher=None):
                 if args.version_2_with_negative:
                     inputs.update({"is_impossible": batch[7]})
             outputs = model(**inputs)
-            loss, start_logits_stu, end_logits_stu = outputs
+
+            # Tuan: begin
+            # loss, start_logits_stu, end_logits_stu = outputs
+            loss, start_logits_stu, end_logits_stu = outputs.values()
+            # Tuan: end
 
             # Distillation loss
             if teacher is not None:
                 if "token_type_ids" not in inputs:
                     inputs["token_type_ids"] = None if args.teacher_type == "xlm" else batch[2]
                 with torch.no_grad():
-                    start_logits_tea, end_logits_tea = teacher(
+                    tea_outputs = teacher(
                         input_ids=inputs["input_ids"],
                         token_type_ids=inputs["token_type_ids"],
                         attention_mask=inputs["attention_mask"],
                     )
+                    start_logits_tea, end_logits_tea = tea_outputs.values()
                 assert start_logits_tea.size() == start_logits_stu.size()
                 assert end_logits_tea.size() == end_logits_stu.size()
 
@@ -269,6 +287,11 @@ def train(args, train_dataset, model, tokenizer, teacher=None):
                     # Only evaluate when single GPU otherwise metrics may not average well
                     if args.local_rank == -1 and args.evaluate_during_training:
                         results = evaluate(args, model, tokenizer)
+
+                        # Tuan: begin
+                        logger.info(f"Eval results at global step: {global_step}")
+                        logger.info(f"{results}")
+                        # Tuan: end
                         for key, value in results.items():
                             tb_writer.add_scalar("eval_{}".format(key), value, global_step)
                     tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
@@ -329,7 +352,6 @@ def evaluate(args, model, tokenizer, prefix=""):
 
     all_results = []
     start_time = timeit.default_timer()
-
     for batch in tqdm(eval_dataloader, desc="Evaluating"):
         model.eval()
         batch = tuple(t.to(args.device) for t in batch)
@@ -348,7 +370,10 @@ def evaluate(args, model, tokenizer, prefix=""):
             eval_feature = features[example_index.item()]
             unique_id = int(eval_feature.unique_id)
 
-            output = [to_list(output[i]) for output in outputs]
+            # Tuan: begin
+            # output = [to_list(output[i]) for output in outputs]
+            output = [to_list(output[i]) for output in outputs.values()]
+            # Tuan: end
 
             # Some models (XLNet, XLM) use 5 arguments for their predictions, while the other "simpler"
             # models only use two.
@@ -429,7 +454,6 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
     if args.local_rank not in [-1, 0] and not evaluate:
         # Make sure only the first process in distributed training process the dataset, and the others will use the cache
         torch.distributed.barrier()
-
     # Load data features from cache or dataset file
     input_file = args.predict_file if evaluate else args.train_file
     cached_features_file = os.path.join(
@@ -639,6 +663,11 @@ def main():
         help="If > 0: set total number of training steps to perform. Override num_train_epochs.",
     )
     parser.add_argument("--warmup_steps", default=0, type=int, help="Linear warmup over warmup_steps.")
+
+    # Tuan: begin
+    parser.add_argument("--warmup_ratio", default=0.0, type=float, help="Ratio of steps for linear warmup.")
+    # Tuan: end
+
     parser.add_argument(
         "--n_best_size",
         default=20,
