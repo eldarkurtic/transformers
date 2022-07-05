@@ -243,7 +243,7 @@ class BertSelfAttention(nn.Module):
 
         # non-parameterized matmuls will behave as normal torch.matmul ops unless
         # Quantization-Aware-Training is invoked
-        self.attention_scores_matmul = QATAttentionScores
+        self.attention_scores_matmul = QATAttentionScores()
         self.context_layer_matmul = QATContextLayer()
 
         self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
