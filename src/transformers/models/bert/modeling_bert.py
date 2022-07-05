@@ -53,7 +53,7 @@ from ...modeling_utils import (
     find_pruneable_heads_and_indices,
     prune_linear_layer,
 )
-from ...qat import QATMatMul
+from ...qat import QATAttentionScores, QATContextLayer
 from ...utils import logging
 from .configuration_bert import BertConfig
 
@@ -243,8 +243,8 @@ class BertSelfAttention(nn.Module):
 
         # non-parameterized matmuls will behave as normal torch.matmul ops unless
         # Quantization-Aware-Training is invoked
-        self.attention_scores_matmul = QATMatMul()
-        self.context_layer_matmul = QATMatMul()
+        self.attention_scores_matmul = QATAttentionScores
+        self.context_layer_matmul = QATContextLayer()
 
         self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
         self.position_embedding_type = position_embedding_type or getattr(
