@@ -152,23 +152,21 @@ class NoNorm(nn.Module):
 
 NORM2FN = {"layer_norm": nn.LayerNorm, "no_norm": NoNorm}
 
-class QATEmbeddingTransformation(nn.Module):
-    def __init__(self, embedded_input_size, hidden_size):
-        super().__init__()
+
+class QATEmbeddingTransformation(nn.Linear):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         # Behaves like normal Linear module unless a SparseML QuantizationModifier
         # is initialized.
         # When initialized, does not quantize inputs.
         # Only weights are quantized (inputs come quantized from embeddings)
-        self.linear = nn.Linear(embedded_input_size, hidden_size)
         self.wrap_qat = True
         self.qat_wrapper_kwargs = {
             "num_inputs": 0,
             "num_outputs": 1,
         }
 
-    def forward(self, x: torch.Tensor):
-        return self.linear(x)
 
 class MobileBertEmbeddings(nn.Module):
     """Construct the embeddings from word, position and token_type embeddings."""
